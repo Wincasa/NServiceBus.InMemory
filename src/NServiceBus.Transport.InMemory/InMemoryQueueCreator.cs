@@ -1,11 +1,12 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
+using NServiceBus.Logging;
 
 namespace NServiceBus.Transport.InMemory
 {
     public class InMemoryQueueCreator : ICreateQueues
     {
+        private readonly ILog log = LogManager.GetLogger<InMemoryTransport>();
+
         public InMemoryQueueCreator(InMemoryDatabase inMemoryDatabase)
         {
             InMemoryDatabase = inMemoryDatabase;
@@ -17,9 +18,9 @@ namespace NServiceBus.Transport.InMemory
         {
             var sendingAddresses = string.Join("\n", queueBindings.SendingAddresses);
             var receivingAddresses = string.Join("\n", queueBindings.ReceivingAddresses);
-            Console.WriteLine("Creating queues...");
-            Console.WriteLine($"Sending addresses: {sendingAddresses}");
-            Console.WriteLine($"Receiving addresses: {receivingAddresses}");
+            log.Info("Creating queues...");
+            log.Info($"Sending addresses: {sendingAddresses}");
+            log.Info($"Receiving addresses: {receivingAddresses}");
 
             foreach (var sendingAddress in queueBindings.SendingAddresses)
             {
