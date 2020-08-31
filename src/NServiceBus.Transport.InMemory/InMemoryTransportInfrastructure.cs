@@ -10,9 +10,12 @@ namespace NServiceBus.Transport.InMemory
     public class InMemoryTransportInfrastructure : TransportInfrastructure
     {
         private readonly InMemoryDatabase inMemoryDatabase = new InMemoryDatabase();
+        private readonly string endpointName;
 
         public InMemoryTransportInfrastructure(SettingsHolder settings)
         {
+            endpointName = settings.EndpointName();
+
             if (settings.TryGet(out InMemoryDatabase database))
             {
                 inMemoryDatabase = database;
@@ -37,7 +40,7 @@ namespace NServiceBus.Transport.InMemory
         public override TransportSubscriptionInfrastructure ConfigureSubscriptionInfrastructure()
         {
             return new TransportSubscriptionInfrastructure(
-                () => new SubscriptionManager());
+                () => new SubscriptionManager(new EndpointInfo(endpointName), inMemoryDatabase));
         }
 
         public override EndpointInstance BindToLocalEndpoint(EndpointInstance instance)

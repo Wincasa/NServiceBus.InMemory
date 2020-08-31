@@ -5,9 +5,14 @@
     /// </summary>
     public class EndpointInfo
     {
+        public EndpointInfo(string name)
+        {
+            Name = name;
+        }
+
         /// <summary>
         /// The end point name.
         /// </summary>
-        public string Name { get; set; }
+        public string Name { get; }
     }
 }
