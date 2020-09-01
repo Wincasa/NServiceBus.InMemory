@@ -8,7 +8,7 @@ resources:
   clean: true
 
 variables:
-  BuildConfiguration: 'Debug'
+  BuildConfiguration: 'Release'
   ProjectName: 'NServiceBus.Transport.InMemory'
   ArtifactsDirectory: '$(Build.ArtifactStagingDirectory)/packages'
 
