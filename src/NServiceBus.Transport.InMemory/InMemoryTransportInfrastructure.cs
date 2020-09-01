@@ -53,7 +53,14 @@ namespace NServiceBus.Transport.InMemory
             var endpointInstance = logicalAddress.EndpointInstance;
             var discriminator = endpointInstance.Discriminator ?? "";
             var qualifier = logicalAddress.Qualifier ?? "";
-            return string.Join("/", endpointInstance, discriminator, qualifier);
+
+            var transportAddress = endpointInstance.ToString();
+            if (!string.IsNullOrEmpty(discriminator))
+                transportAddress += "/" + discriminator;
+            if (!string.IsNullOrEmpty(qualifier))
+                transportAddress += "/" + qualifier;
+
+            return transportAddress;
         }
 
         public override IEnumerable<Type> DeliveryConstraints => new[]
