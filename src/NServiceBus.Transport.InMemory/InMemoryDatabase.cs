@@ -18,6 +18,7 @@ namespace NServiceBus.Transport.InMemory
         {
             try
             {
+                CreateQueueIfNecessary(destination);
                 queues[destination].AddMessage(message.Serialize());
             }
             catch (Exception error)
@@ -43,9 +44,9 @@ namespace NServiceBus.Transport.InMemory
         /// <summary>
         /// Abstraction of the capability to create queues
         /// </summary>
-        public bool CreateQueueIfNecessary(string queueName, NsbQueue queue)
+        public bool CreateQueueIfNecessary(string queueName)
         {
-            return queues.TryAdd(queueName, queue);
+            return queues.TryAdd(queueName, new NsbQueue());
         }
 
         /// <summary>

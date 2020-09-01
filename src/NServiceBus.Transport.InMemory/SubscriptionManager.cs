@@ -6,9 +6,15 @@ namespace NServiceBus.Transport.InMemory
 {
     public class SubscriptionManager : IManageSubscriptions
     {
-        public EndpointInfo Endpoint { get; set; }
+        public SubscriptionManager(EndpointInfo endpoint, InMemoryDatabase inMemoryDatabase)
+        {
+            Endpoint = endpoint;
+            InMemoryDatabase = inMemoryDatabase;
+        }
 
-        public InMemoryDatabase InMemoryDatabase { get; set; }
+        private EndpointInfo Endpoint { get; }
+
+        private InMemoryDatabase InMemoryDatabase { get; }
 
         public Task Subscribe(Type eventType, ContextBag context)
         {

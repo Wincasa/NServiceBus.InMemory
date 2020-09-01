@@ -3,12 +3,24 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NServiceBus.Performance.TimeToBeReceived;
 using NServiceBus.Routing;
+using NServiceBus.Settings;
 
 namespace NServiceBus.Transport.InMemory
 {
     public class InMemoryTransportInfrastructure : TransportInfrastructure
     {
         private readonly InMemoryDatabase inMemoryDatabase = new InMemoryDatabase();
+        private readonly string endpointName;
+
+        public InMemoryTransportInfrastructure(SettingsHolder settings)
+        {
+            endpointName = settings.EndpointName();
+
+            if (settings.TryGet(out InMemoryDatabase database))
+            {
+                inMemoryDatabase = database;
+            }
+        }
 
         public override TransportReceiveInfrastructure ConfigureReceiveInfrastructure()
         {
@@ -28,7 +40,7 @@ namespace NServiceBus.Transport.InMemory
         public override TransportSubscriptionInfrastructure ConfigureSubscriptionInfrastructure()
         {
             return new TransportSubscriptionInfrastructure(
-                () => new SubscriptionManager());
+                () => new SubscriptionManager(new EndpointInfo(endpointName), inMemoryDatabase));
         }
 
         public override EndpointInstance BindToLocalEndpoint(EndpointInstance instance)
@@ -41,7 +53,14 @@ namespace NServiceBus.Transport.InMemory
             var endpointInstance = logicalAddress.EndpointInstance;
             var discriminator = endpointInstance.Discriminator ?? "";
             var qualifier = logicalAddress.Qualifier ?? "";
-            return string.Join("/", endpointInstance, discriminator, qualifier);
+
+            var transportAddress = endpointInstance.ToString();
+            if (!string.IsNullOrEmpty(discriminator))
+                transportAddress += "/" + discriminator;
+            if (!string.IsNullOrEmpty(qualifier))
+                transportAddress += "/" + qualifier;
+
+            return transportAddress;
         }
 
         public override IEnumerable<Type> DeliveryConstraints => new[]

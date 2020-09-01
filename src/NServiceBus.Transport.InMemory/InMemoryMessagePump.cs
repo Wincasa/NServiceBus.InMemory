@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,7 +32,7 @@ namespace NServiceBus.Transport.InMemory
 
         public Task Init(Func<MessageContext, Task> onMessage, Func<ErrorContext, Task<ErrorHandleResult>> onError, CriticalError criticalError, PushSettings settings)
         {
-            InMemoryDatabase.CreateQueueIfNecessary(settings.InputQueue, new NsbQueue());
+            InMemoryDatabase.CreateQueueIfNecessary(settings.InputQueue);
             queue = InMemoryDatabase.GetQueue(settings.InputQueue);
             if (queue == null)
             {

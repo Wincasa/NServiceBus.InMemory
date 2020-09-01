@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using NServiceBus.Logging;
 
 namespace NServiceBus.Transport.InMemory
 {
@@ -15,12 +16,12 @@ namespace NServiceBus.Transport.InMemory
         {
             foreach (var sendingAddress in queueBindings.SendingAddresses)
             {
-                InMemoryDatabase.CreateQueueIfNecessary(sendingAddress, new NsbQueue());
+                InMemoryDatabase.CreateQueueIfNecessary(sendingAddress);
             }
 
             foreach (var receivingAddress in queueBindings.ReceivingAddresses)
             {
-                InMemoryDatabase.CreateQueueIfNecessary(receivingAddress, new NsbQueue());
+                InMemoryDatabase.CreateQueueIfNecessary(receivingAddress);
             }
 
             return Task.CompletedTask;
