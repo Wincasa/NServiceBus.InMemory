@@ -8,17 +8,17 @@ namespace NServiceBus.Transport.InMemory
     /// </summary>
     public class NsbQueue : MarshalByRefObject
     {
-        private readonly ConcurrentQueue<SerializedMessage> queue = new ConcurrentQueue<SerializedMessage>();
+        private readonly ConcurrentQueue<SerializedMessage> _queue = new ConcurrentQueue<SerializedMessage>();
 
         public override string ToString()
         {
-            return $"Pending: {queue.Count}";
+            return $"Pending: {_queue.Count}";
         }
 
         /// <summary>
         /// If the queue is empty.
         /// </summary>
-        public bool IsEmpty => queue.IsEmpty;
+        public bool IsEmpty => _queue.IsEmpty;
 
         /// <summary>
         /// Adds a message to the queue.
@@ -26,7 +26,7 @@ namespace NServiceBus.Transport.InMemory
         /// <param name="message">The message to enqueue</param>
         public void AddMessage(SerializedMessage message)
         {
-            queue.Enqueue(message);
+            _queue.Enqueue(message);
         }
 
         /// <summary>
@@ -34,15 +34,15 @@ namespace NServiceBus.Transport.InMemory
         /// </summary>
         public void Clear()
         {
-            while (!queue.IsEmpty)
+            while (!_queue.IsEmpty)
             {
-                queue.TryDequeue(out var message);
+                _queue.TryDequeue(out var message);
             }
         }
 
         public bool TryDequeue(out SerializedMessage message)
         {
-            return queue.TryDequeue(out message);
+            return _queue.TryDequeue(out message);
         }
     }
 }

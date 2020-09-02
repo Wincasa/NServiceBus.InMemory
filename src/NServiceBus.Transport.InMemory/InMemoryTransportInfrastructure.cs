@@ -9,38 +9,38 @@ namespace NServiceBus.Transport.InMemory
 {
     public class InMemoryTransportInfrastructure : TransportInfrastructure
     {
-        private readonly InMemoryDatabase inMemoryDatabase = new InMemoryDatabase();
-        private readonly string endpointName;
+        private readonly InMemoryDatabase _inMemoryDatabase = new InMemoryDatabase();
+        private readonly string _endpointName;
 
         public InMemoryTransportInfrastructure(SettingsHolder settings)
         {
-            endpointName = settings.EndpointName();
+            _endpointName = settings.EndpointName();
 
             if (settings.TryGet(out InMemoryDatabase database))
             {
-                inMemoryDatabase = database;
+                _inMemoryDatabase = database;
             }
         }
 
         public override TransportReceiveInfrastructure ConfigureReceiveInfrastructure()
         {
             return new TransportReceiveInfrastructure(
-                () => new InMemoryMessagePump(inMemoryDatabase),
-                () => new InMemoryQueueCreator(inMemoryDatabase),
+                () => new InMemoryMessagePump(_inMemoryDatabase),
+                () => new InMemoryQueueCreator(_inMemoryDatabase),
                 () => Task.FromResult(StartupCheckResult.Success));
         }
 
         public override TransportSendInfrastructure ConfigureSendInfrastructure()
         {
             return new TransportSendInfrastructure(
-                () => new InMemoryMessageDispatcher(inMemoryDatabase),
+                () => new InMemoryMessageDispatcher(_inMemoryDatabase),
                 () => Task.FromResult(StartupCheckResult.Success));
         }
 
         public override TransportSubscriptionInfrastructure ConfigureSubscriptionInfrastructure()
         {
             return new TransportSubscriptionInfrastructure(
-                () => new SubscriptionManager(new EndpointInfo(endpointName), inMemoryDatabase));
+                () => new SubscriptionManager(new EndpointInfo(_endpointName), _inMemoryDatabase));
         }
 
         public override EndpointInstance BindToLocalEndpoint(EndpointInstance instance)
