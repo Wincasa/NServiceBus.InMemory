@@ -73,7 +73,7 @@ namespace NServiceBus.Transport.InMemory
             File.AppendAllLines(logFilePath, new []{ "Starting pump" });
         }
 
-        async Task IPushMessages.Stop()
+        public async Task Stop()
         {
             cancellationTokenSource.Cancel();
 
