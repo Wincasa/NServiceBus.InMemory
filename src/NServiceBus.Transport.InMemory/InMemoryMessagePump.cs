@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,8 @@ namespace NServiceBus.Transport.InMemory
         private Func<MessageContext, Task> onMessage;
         private Func<ErrorContext, Task<ErrorHandleResult>> onError;
         private CriticalError criticalError;
+
+        private readonly string logFilePath = Path.Combine(Path.GetTempPath(), "inmemorypump_log.txt");
 
         public InMemoryMessagePump(InMemoryDatabase inMemoryDatabase)
         {
@@ -66,6 +69,8 @@ namespace NServiceBus.Transport.InMemory
                     creationOptions: TaskCreationOptions.LongRunning, 
                     scheduler: TaskScheduler.Default)
                 .Unwrap();
+
+            File.AppendAllLines(logFilePath, new []{ "Starting pump" });
         }
 
         async Task IPushMessages.Stop()
@@ -74,6 +79,7 @@ namespace NServiceBus.Transport.InMemory
 
             var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), cancellationTokenSource.Token);
             var allTasks = runningReceiveTasks.Values.Append(processMessagesTask);
+            File.AppendAllLines(logFilePath, new[] { "Stopping pump" });
             var finishedTask = await Task.WhenAny(
                 Task.WhenAll(allTasks),
                 timeoutTask).ConfigureAwait(false);
@@ -81,6 +87,11 @@ namespace NServiceBus.Transport.InMemory
             if (finishedTask.Equals(timeoutTask))
             {
                 logger.Error("The message pump failed to stop with in the time allowed(30s)");
+                File.AppendAllLines(logFilePath, new[] { "Pump stop timed out" });
+            }
+            else
+            {
+                File.AppendAllLines(logFilePath, new[] { "Stopped pump" });
             }
 
             concurrencyLimiter.Dispose();
@@ -101,6 +112,8 @@ namespace NServiceBus.Transport.InMemory
                     logger.Error("File Message pump failed", ex);
                 }
             }
+
+            File.AppendAllLines(logFilePath, new[] { "Process messages canceled" });
         }
 
         private async Task InnerProcessMessages()
