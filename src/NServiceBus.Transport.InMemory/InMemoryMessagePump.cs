@@ -89,31 +89,25 @@ namespace NServiceBus.Transport.InMemory
 
         private async Task ProcessMessages()
         {
-            try
+            while (!cancellationTokenSource.IsCancellationRequested)
             {
-                await InnerProcessMessages()
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.Error("File Message pump failed", ex);
-            }
-
-            if (!cancellationTokenSource.IsCancellationRequested)
-            {
-                await ProcessMessages()
-                    .ConfigureAwait(false);
+                try
+                {
+                    await InnerProcessMessages()
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.Error("File Message pump failed", ex);
+                }
             }
         }
 
         private async Task InnerProcessMessages()
         {
-            while (!cancellationTokenSource.IsCancellationRequested)
+            while (queue.TryDequeue(out var message))
             {
-                while (queue.TryDequeue(out var message))
-                {
-                    await ProcessMessage(message).ConfigureAwait(false);
-                }
+                await ProcessMessage(message).ConfigureAwait(false);
             }
         }
 
