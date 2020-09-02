@@ -17,9 +17,6 @@ trigger:
   branches:
     include:
     - master
-  paths:
-    include:
-    - '$(ProjectName)/*'
 
 pr:
 - master
