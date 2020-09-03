@@ -10,26 +10,26 @@ namespace NServiceBus.Transport.InMemory
     /// </summary>
     public class InMemoryDatabase : MarshalByRefObject
     {
-        private readonly ConcurrentDictionary<string, HashSet<string>> topics = new ConcurrentDictionary<string, HashSet<string>>();
-        private readonly ConcurrentDictionary<string, NsbQueue> queues = new ConcurrentDictionary<string, NsbQueue>();
-        private readonly ILog log = LogManager.GetLogger<InMemoryTransport>();
+        private readonly ConcurrentDictionary<string, HashSet<string>> _topics = new ConcurrentDictionary<string, HashSet<string>>();
+        private readonly ConcurrentDictionary<string, NsbQueue> _queues = new ConcurrentDictionary<string, NsbQueue>();
+        private readonly ILog _log = LogManager.GetLogger<InMemoryTransport>();
 
-        private void send(OutgoingMessage message, string destination)
+        private void Send(OutgoingMessage message, string destination)
         {
             try
             {
                 CreateQueueIfNecessary(destination);
-                queues[destination].AddMessage(message.Serialize());
+                _queues[destination].AddMessage(message.Serialize());
             }
             catch (Exception error)
             {
-                log.Error("Failed to send message.", error);
+                _log.Error("Failed to send message.", error);
             }
         }
 
         public override string ToString()
         {
-            return $"Queues: {queues.Count}, Topics: {topics.Count}";
+            return $"Queues: {_queues.Count}, Topics: {_topics.Count}";
         }
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace NServiceBus.Transport.InMemory
         public NsbQueue GetQueue(string queueName)
         {
             NsbQueue queue;
-            return queues.TryGetValue(queueName, out queue) ? queue : null;
+            return _queues.TryGetValue(queueName, out queue) ? queue : null;
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace NServiceBus.Transport.InMemory
         /// </summary>
         public bool CreateQueueIfNecessary(string queueName)
         {
-            return queues.TryAdd(queueName, new NsbQueue());
+            return _queues.TryAdd(queueName, new NsbQueue());
         }
 
         /// <summary>
@@ -56,11 +56,11 @@ namespace NServiceBus.Transport.InMemory
         /// <param name="messageType">The type of the message.</param>
         public void Publish(OutgoingMessage message, Type messageType)
         {
-            if (topics.TryGetValue(messageType.AssemblyQualifiedName, out var endpoints))
+            if (_topics.TryGetValue(messageType.AssemblyQualifiedName, out var endpoints))
             {
                 foreach (var endpoint in endpoints)
                 {
-                    if (queues.TryGetValue(endpoint, out var eventQueue))
+                    if (_queues.TryGetValue(endpoint, out var eventQueue))
                     {
                         eventQueue.AddMessage(message.Serialize());
                     }
@@ -72,13 +72,13 @@ namespace NServiceBus.Transport.InMemory
             }
             else
             {
-                log.Warn($"Unable to publish message '{messageType}' because no endpoint subscribed to the message.");
+                _log.Warn($"Unable to publish message '{messageType}' because no endpoint subscribed to the message.");
             }
         }
 
         public void Send(UnicastTransportOperation transportOperation)
         {
-            send(transportOperation.Message, transportOperation.Destination);
+            Send(transportOperation.Message, transportOperation.Destination);
         }
 
         /// <summary>
@@ -88,12 +88,12 @@ namespace NServiceBus.Transport.InMemory
         /// <param name="endpointName">The endpoint name</param>
         public void Subscribe(string eventType, string endpointName)
         {
-            if (!topics.TryAdd(eventType, new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            if (!_topics.TryAdd(eventType, new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 endpointName
             }))
             {
-                topics[eventType].Add(endpointName);
+                _topics[eventType].Add(endpointName);
             }
         }
 
@@ -105,7 +105,7 @@ namespace NServiceBus.Transport.InMemory
         public void Unsubscribe(string eventType, string endpointName)
         {
             HashSet<string> endpoints;
-            if (topics.TryGetValue(eventType, out endpoints))
+            if (_topics.TryGetValue(eventType, out endpoints))
             {
                 endpoints.Remove(endpointName);
             }

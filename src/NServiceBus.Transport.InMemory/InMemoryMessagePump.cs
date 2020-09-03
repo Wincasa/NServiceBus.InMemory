@@ -10,18 +10,17 @@ namespace NServiceBus.Transport.InMemory
 {
     public class InMemoryMessagePump : IPushMessages
     {
-        private readonly ILog logger = LogManager.GetLogger<InMemoryMessagePump>();
+        private readonly ILog _logger = LogManager.GetLogger<InMemoryMessagePump>();
 
-        private NsbQueue queue;
-        private bool purgeOnStartup;
-        private TransportTransactionMode transactionMode;
-        private SemaphoreSlim concurrencyLimiter;
-        private CancellationTokenSource cancellationTokenSource;
-        private Task processMessagesTask;
-        private ConcurrentDictionary<Task, Task> runningReceiveTasks;
-        private Func<MessageContext, Task> onMessage;
-        private Func<ErrorContext, Task<ErrorHandleResult>> onError;
-        private CriticalError criticalError;
+        private NsbQueue _queue;
+        private bool _purgeOnStartup;
+        private SemaphoreSlim _concurrencyLimiter;
+        private CancellationTokenSource _cancellationTokenSource;
+        private Task _processMessagesTask;
+        private ConcurrentDictionary<Task, Task> _runningReceiveTasks;
+        private Func<MessageContext, Task> _onMessage;
+        private Func<ErrorContext, Task<ErrorHandleResult>> _onError;
+        private CriticalError _criticalError;
 
         public InMemoryMessagePump(InMemoryDatabase inMemoryDatabase)
         {
@@ -33,33 +32,32 @@ namespace NServiceBus.Transport.InMemory
         public Task Init(Func<MessageContext, Task> onMessage, Func<ErrorContext, Task<ErrorHandleResult>> onError, CriticalError criticalError, PushSettings settings)
         {
             InMemoryDatabase.CreateQueueIfNecessary(settings.InputQueue);
-            queue = InMemoryDatabase.GetQueue(settings.InputQueue);
-            if (queue == null)
+            _queue = InMemoryDatabase.GetQueue(settings.InputQueue);
+            if (_queue == null)
             {
                 throw new InvalidProgramException($"Unable to get or add the queue '{settings.InputQueue}'.");
             }
 
-            purgeOnStartup = settings.PurgeOnStartup;
-            transactionMode = settings.RequiredTransactionMode;
-            this.onMessage = onMessage;
-            this.onError = onError;
-            this.criticalError = criticalError;
+            _purgeOnStartup = settings.PurgeOnStartup;
+            this._onMessage = onMessage;
+            this._onError = onError;
+            this._criticalError = criticalError;
 
             return Task.CompletedTask;
         }
 
         public void Start(PushRuntimeSettings limitations)
         {
-            runningReceiveTasks = new ConcurrentDictionary<Task, Task>();
-            concurrencyLimiter = new SemaphoreSlim(limitations.MaxConcurrency);
-            cancellationTokenSource = new CancellationTokenSource();
+            _runningReceiveTasks = new ConcurrentDictionary<Task, Task>();
+            _concurrencyLimiter = new SemaphoreSlim(limitations.MaxConcurrency);
+            _cancellationTokenSource = new CancellationTokenSource();
 
-            if (purgeOnStartup)
+            if (_purgeOnStartup)
             {
-                queue.Clear();
+                _queue.Clear();
             }
 
-            processMessagesTask = Task.Factory
+            _processMessagesTask = Task.Factory
                 .StartNew(
                     function: ProcessMessages, 
                     cancellationToken: CancellationToken.None,
@@ -68,58 +66,53 @@ namespace NServiceBus.Transport.InMemory
                 .Unwrap();
         }
 
-        async Task IPushMessages.Stop()
+        public async Task Stop()
         {
-            cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Cancel();
 
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), cancellationTokenSource.Token);
-            var allTasks = runningReceiveTasks.Values.Append(processMessagesTask);
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), _cancellationTokenSource.Token);
+            var allTasks = _runningReceiveTasks.Values.Append(_processMessagesTask);
             var finishedTask = await Task.WhenAny(
                 Task.WhenAll(allTasks),
                 timeoutTask).ConfigureAwait(false);
 
             if (finishedTask.Equals(timeoutTask))
             {
-                logger.Error("The message pump failed to stop with in the time allowed(30s)");
+                _logger.Error("The message pump failed to stop with in the time allowed(30s)");
             }
 
-            concurrencyLimiter.Dispose();
-            runningReceiveTasks.Clear();
+            _concurrencyLimiter.Dispose();
+            _runningReceiveTasks.Clear();
         }
 
         private async Task ProcessMessages()
         {
-            try
+            while (!_cancellationTokenSource.IsCancellationRequested)
             {
-                await InnerProcessMessages()
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.Error("File Message pump failed", ex);
-            }
-
-            if (!cancellationTokenSource.IsCancellationRequested)
-            {
-                await ProcessMessages()
-                    .ConfigureAwait(false);
+                try
+                {
+                    await InnerProcessMessages()
+                        .ConfigureAwait(false);
+                    await Task.Delay(500).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error("File Message pump failed", ex);
+                }
             }
         }
 
         private async Task InnerProcessMessages()
         {
-            while (!cancellationTokenSource.IsCancellationRequested)
+            while (_queue.TryDequeue(out var message))
             {
-                while (queue.TryDequeue(out var message))
-                {
-                    await ProcessMessage(message).ConfigureAwait(false);
-                }
+                await ProcessMessage(message).ConfigureAwait(false);
             }
         }
 
         private async Task ProcessMessage(SerializedMessage message)
         {
-            await concurrencyLimiter.WaitAsync(cancellationTokenSource.Token).ConfigureAwait(false);
+            await _concurrencyLimiter.WaitAsync(_cancellationTokenSource.Token).ConfigureAwait(false);
 
             var task = Task.Run(async () =>
             {
@@ -129,16 +122,16 @@ namespace NServiceBus.Transport.InMemory
                 }
                 finally
                 {
-                    concurrencyLimiter.Release();
+                    _concurrencyLimiter.Release();
                 }
-            }, cancellationTokenSource.Token);
+            }, _cancellationTokenSource.Token);
 
             _ = task.ContinueWith(t =>
             {
-                runningReceiveTasks.TryRemove(t, out _);
+                _runningReceiveTasks.TryRemove(t, out _);
             }, TaskContinuationOptions.ExecuteSynchronously);
 
-            _ = runningReceiveTasks.AddOrUpdate(task, task, (k, v) => task);
+            _ = _runningReceiveTasks.AddOrUpdate(task, task, (k, v) => task);
         }
 
         private async Task ProcessMessageWithTransaction(SerializedMessage message)
@@ -149,7 +142,7 @@ namespace NServiceBus.Transport.InMemory
 
             if (!succeeded)
             {
-                queue.AddMessage(message);
+                _queue.AddMessage(message);
             }
         }
 
@@ -162,7 +155,7 @@ namespace NServiceBus.Transport.InMemory
 
                 var pushContext = new MessageContext(messageId, headers, body, transportTransaction, receiveCancellationTokenSource, new ContextBag());
 
-                await onMessage(pushContext).ConfigureAwait(false);
+                await _onMessage(pushContext).ConfigureAwait(false);
 
                 return !receiveCancellationTokenSource.IsCancellationRequested;
             }
@@ -175,7 +168,7 @@ namespace NServiceBus.Transport.InMemory
 
                 try
                 {
-                    var errorHandlingResult = await onError(errorContext).ConfigureAwait(false);
+                    var errorHandlingResult = await _onError(errorContext).ConfigureAwait(false);
 
                     if (errorHandlingResult == ErrorHandleResult.RetryRequired)
                     {
@@ -184,7 +177,7 @@ namespace NServiceBus.Transport.InMemory
                 }
                 catch (Exception exception)
                 {
-                    criticalError.Raise($"Failed to execute recoverability policy for message with native ID: `{messageId}`", exception);
+                    _criticalError.Raise($"Failed to execute recoverability policy for message with native ID: `{messageId}`", exception);
 
                     return await HandleMessageWithRetries(message, transportTransaction, processingAttempt).ConfigureAwait(false);
                 }
