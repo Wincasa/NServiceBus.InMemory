@@ -93,6 +93,7 @@ namespace NServiceBus.Transport.InMemory
                 {
                     await InnerProcessMessages()
                         .ConfigureAwait(false);
+                    await Task.Delay(500).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
